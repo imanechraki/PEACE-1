@@ -39,18 +39,17 @@ def patching(WSI_object, **kwargs):
 	start_time = time.time()
 
 	# Patch
-	file_path = WSI_object.process_contours(**kwargs)
+	file_path, n_patches = WSI_object.process_contours(**kwargs)
 
 
 	### Stop Patch Timer
 	patch_time_elapsed = time.time() - start_time
-	return file_path, patch_time_elapsed
+	return file_path, patch_time_elapsed, n_patches
 
 
 def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_dir, 
 				  patch_size = 256, step_size = 256, 
-				  seg_params = {'seg_level': -1, 'sthresh': 8, 'mthresh': 7, 'close': 4, 'use_otsu': False,
-				  'keep_ids': 'none', 'exclude_ids': 'none'},
+				  seg_params = {'seg_level': -1, 'sthresh': 8, 'mthresh': 7, 'close': 4, 'use_otsu': False},
 				  filter_params = {'a_t':100, 'a_h': 16, 'max_n_holes':8}, 
 				  vis_params = {'vis_level': -1, 'line_thickness': 500},
 				  patch_params = {'use_padding': True, 'contour_fn': 'four_pt'},
@@ -162,20 +161,6 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 				best_level = wsi.get_best_level_for_downsample(64)
 				current_seg_params['seg_level'] = best_level
 
-		keep_ids = str(current_seg_params['keep_ids'])
-		if keep_ids != 'none' and len(keep_ids) > 0:
-			str_ids = current_seg_params['keep_ids']
-			current_seg_params['keep_ids'] = np.array(str_ids.split(',')).astype(int)
-		else:
-			current_seg_params['keep_ids'] = []
-
-		exclude_ids = str(current_seg_params['exclude_ids'])
-		if exclude_ids != 'none' and len(exclude_ids) > 0:
-			str_ids = current_seg_params['exclude_ids']
-			current_seg_params['exclude_ids'] = np.array(str_ids.split(',')).astype(int)
-		else:
-			current_seg_params['exclude_ids'] = []
-
 		w, h = WSI_object.level_dim[current_seg_params['seg_level']] 
 		if w * h > 1e8:
 			print('level_dim {} x {} is likely too large for successful segmentation, aborting'.format(w, h))
@@ -202,7 +187,7 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 			if patch:
 				current_patch_params.update({'patch_level': patch_level, 'patch_size': patch_size, 'step_size': step_size, 
 											'save_path': patch_save_dir})
-				file_path, patch_time_elapsed = patching(WSI_object = WSI_object,  **current_patch_params,)
+				file_path, patch_time_elapsed, n_patches = patching(WSI_object = WSI_object,  **current_patch_params,)
 			
 			stitch_time_elapsed = -1
 			if stitch:
@@ -216,7 +201,8 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 			print("patching took {} seconds".format(patch_time_elapsed))
 			print("stitching took {} seconds".format(stitch_time_elapsed))
 			df.loc[idx, 'status'] = 'processed'
-
+			if n_patches:
+				df.loc[idx, 'patched'] = True
 			seg_times += seg_time_elapsed
 			patch_times += patch_time_elapsed
 			stitch_times += stitch_time_elapsed
@@ -284,8 +270,7 @@ if __name__ == '__main__':
 		if key not in ['source']:
 			os.makedirs(val, exist_ok=True)
 
-	seg_params = {'seg_level': -1, 'sthresh': 8, 'mthresh': 7, 'close': 4, 'use_otsu': False,
-				  'keep_ids': 'none', 'exclude_ids': 'none'}
+	seg_params = {'seg_level': -1, 'sthresh': 8, 'mthresh': 7, 'close': 4, 'use_otsu': False}
 	filter_params = {'a_t':100, 'a_h': 16, 'max_n_holes':8}
 	vis_params = {'vis_level': -1, 'line_thickness': 250}
 	patch_params = {'use_padding': True, 'contour_fn': 'four_pt'}
