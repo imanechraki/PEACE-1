@@ -90,7 +90,7 @@ class WholeSlideImage(object):
         save_pkl(mask_file, asset_dict)
 
     def segmentTissue(self, seg_level=0, sthresh=20, sthresh_up = 255, mthresh=7, close = 0, use_otsu=False, 
-                            filter_params={'a_t':100}, ref_patch_size=512, exclude_ids=[], keep_ids=[]):
+                            filter_params={'a_t':100}, ref_patch_size=512):
         """
             Segment the tissue via HSV -> Median thresholding -> Binary threshold
         """
@@ -166,7 +166,6 @@ class WholeSlideImage(object):
         
         # Find and filter contours
         contours, hierarchy = cv2.findContours(img_otsu, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE) # Find contours 
-        print(len(contours))
         if len(contours):
             segmented = True
             hierarchy = np.squeeze(hierarchy, axis=(0,))[:, 2:]
@@ -176,14 +175,8 @@ class WholeSlideImage(object):
             self.contours_tissue = self.scaleContourDim(foreground_contours, scale)
             self.holes_tissue = self.scaleHolesDim(hole_contours, scale)
 
-            #exclude_ids = [0,7,9]
-            if len(keep_ids) > 0:
-                contour_ids = set(keep_ids) - set(exclude_ids)
-            else:
-                contour_ids = set(np.arange(len(self.contours_tissue))) - set(exclude_ids)
+            print(len(self.contours_tissue),len(self.holes_tissue))
 
-            self.contours_tissue = [self.contours_tissue[i] for i in contour_ids]
-            self.holes_tissue = [self.holes_tissue[i] for i in contour_ids]
         else:
             segmented = False
         return segmented
@@ -570,8 +563,8 @@ class WholeSlideImage(object):
         ###### normalize filtered scores ######
         if convert_to_percentiles:
             scores = to_percentiles(scores) 
-
-        scores /= 100
+            scores /= 100
+        print(scores[:10])
         
         ######## calculate the heatmap of raw attention scores (before colormap) 
         # by accumulating scores over overlapped regions ######
