@@ -6,17 +6,17 @@ import torch.nn.functional as F
 
 def define_loss(args):
     if args.loss == "ce_surv":
-        loss = CrossEntropySurvLoss(alpha=0.0)
+        loss = CrossEntropySurvLoss(alpha=args.alpha_surv)
     elif args.loss == "nll_surv":
-        loss = NLLSurvLoss(alpha=0.0)
+        loss = NLLSurvLoss(delta_alpha = args.delta_alpha, alpha=args.alpha_surv)
     elif args.loss == "nll_surv_l1":
-        loss = [NLLSurvLoss(alpha=0.0), nn.L1Loss()]
+        loss = [NLLSurvLoss(alpha=args.alpha_surv), nn.L1Loss()]
     elif args.loss == "nll_surv_mse":
-        loss = [NLLSurvLoss(alpha=0.0), nn.MSELoss()]
+        loss = [NLLSurvLoss(alpha=args.alpha_surv), nn.MSELoss()]
     elif args.loss == "nll_surv_kl":
-        loss = [NLLSurvLoss(alpha=0.0), KLLoss()]
+        loss = [NLLSurvLoss(alpha=args.alpha_surv), KLLoss()]
     elif args.loss == "nll_surv_cos":
-        loss = [NLLSurvLoss(alpha=0.0), CosineLoss()]
+        loss = [NLLSurvLoss(alpha=args.alpha_surv), CosineLoss()]
     else:
         raise NotImplementedError
     return loss
@@ -42,6 +42,22 @@ def nll_loss(hazards, S, Y, c, alpha=0.4, eps=1e-7):
     loss = loss.mean()
     return loss
 
+# def delta_loss(delta, delta_pred):
+#     batch_size = len(delta)
+#     delta = delta.view(batch_size, 1)  
+#     delta_pred = delta_pred.view(batch_size, 1) #.float()  # censorship status, 0 or 1
+  
+#     #loss = torch.log(1 + torch.exp(-(2*delta - 1)*(2*delta_pred - 1)))
+#     loss = torch.log(1 + torch.exp(-(2*delta - 1)*delta_pred))
+#     loss = loss.mean()
+#     return loss
+
+def delta_l2_loss(delta, delta_pred):
+    batch_size = len(delta)
+    delta = delta.view(batch_size, 1)  
+    delta_pred = delta_pred.view(batch_size, 1) #.float()  # censorship status, 0 or 1
+    loss = (delta - delta_pred).pow(2).sum(0).sqrt()
+    return loss
 
 def ce_loss(hazards, S, Y, c, alpha=0.4, eps=1e-7):
     batch_size = len(Y)
@@ -74,14 +90,13 @@ class CrossEntropySurvLoss(object):
 
 # loss_fn(hazards=hazards, S=S, Y=Y_hat, c=c, alpha=0)
 class NLLSurvLoss(object):
-    def __init__(self, alpha=0.15):
+    def __init__(self, delta_alpha, alpha):
         self.alpha = alpha
-
-    def __call__(self, hazards, S, Y, c, alpha=None):
-        if alpha is None:
-            return nll_loss(hazards, S, Y, c, alpha=self.alpha)
-        else:
-            return nll_loss(hazards, S, Y, c, alpha=alpha)
+        self.delta_alpha = delta_alpha
+        print(self.alpha, self.delta_alpha)
+        
+    def __call__(self, hazards, S, Y, c,delta, delta_pred):
+        return (1-self.delta_alpha)*nll_loss(hazards, S, Y, c, alpha=self.alpha) + self.delta_alpha*delta_l2_loss(delta, delta_pred)
 
 
 class KLLoss(object):
