@@ -35,7 +35,7 @@ class Abi_Survival(data.Dataset):
     
     def read_WSI(self, path):
         #path = path.replace('RESNET50', self.folder)
-        path = path.replace('/gpfs/workdir/chrakii/FEATURES_HES/UNI','/content/gdrive/MyDrive/PEACE-1/pt')
+        path = path.replace('/gpfs/workdir/chrakii/FEATURES_HES/RESNET50','/content/gdrive/MyDrive/PEACE-1/pt')
         wsi = [torch.load(x) for x in path.split(';')]
         wsi = torch.cat(wsi, dim=0)
         return wsi
